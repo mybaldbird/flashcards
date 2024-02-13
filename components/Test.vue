@@ -25,13 +25,13 @@
 
 <template>
   <div id="test-select">
-    <h2>Test Select</h2>
+    <h3>Test Select</h3>
     <button @click="chineseToEnglish()">Chinese to English</button>
     <button>English to Chinese</button>
     <button>Chinese Writing</button>
   </div>
   <div id="lesson-select">
-    <h2>Lesson Select</h2>
+    <h3>Lesson Select</h3>
   </div>
   <component v-if="testQuestions" :is="testQuestions" ref="testQuestionsRef" />
 </template>

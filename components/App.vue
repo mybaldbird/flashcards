@@ -66,6 +66,12 @@
   #content {
     margin: 0.5rem 0.5rem;
   }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin: 1rem 0 0.5rem;
+  }
 </style>
 
 <template>
