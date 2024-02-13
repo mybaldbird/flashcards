@@ -2,12 +2,14 @@
   import { ref, computed, provide } from 'vue'
   import Home from './Home.vue'
   import Test from './Test.vue'
+  import Stats from './Stats.vue'
   import Import from './Import.vue'
   import NotFound from './NotFound.vue'
 
   const routes = {
     '/': Home,
     '/test': Test,
+    '/stats': Stats,
     '/import': Import
   }
 
@@ -78,6 +80,7 @@
   <div id="navbar">
     <a href="#/"><span id="home">flashcards</span></a> |
     <a href="#/test">test</a> |
+    <a href="#/stats">stats</a> |
     <a href="#/import">import</a>
   </div>
   <div id="content">

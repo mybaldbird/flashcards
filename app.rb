@@ -16,6 +16,10 @@ get '/images/*' do
   send_file File.join('./images', params['splat'][0])
 end
 
+get '/dictionary' do
+  data.to_json
+end
+
 # import CSV of chinese words and store in the 'data.json' file
 post '/import' do
   payload = JSON.parse(request.body.read)
