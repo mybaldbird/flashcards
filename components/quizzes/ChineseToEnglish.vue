@@ -1,7 +1,7 @@
 <script setup>
-  import { ref, computed, inject } from 'vue'
+  import { ref, inject } from 'vue'
+  import { pushQuizResult, commitQuizResults } from '../utils/quizResults.js'
 
-  const testResults = inject('testResults')
   const questions = inject('questions')
   const pinyin = ref({})
   const english = ref({})
@@ -19,19 +19,19 @@
 
   function submit() {
     axios
-    .post('/submit_test', {
+    .post('/quiz/chinese_to_english/submit', {
       chinese_to_pinyin: questions.value.map((word) => [word, pinyin.value[word] || '']),
       chinese_to_english: questions.value.map((word) => [word, english.value[word] || ''])
     })
     .then((response) => {
-      testResults.value.push(response.data[0])
-      testResults.value.push(response.data[2])
-      localStorage.setItem('testResults', JSON.stringify(testResults.value))
+      pushQuizResult(response.data[0])
+      pushQuizResult(response.data[2])
+      commitQuizResults()
 
-      response.data[0][1].map((word) => pinyinResults.value[word] = 'correct')
-      response.data[0][2].map((word) => pinyinResults.value[word] = 'incorrect')
-      response.data[2][1].map((word) => englishResults.value[word] = 'correct')
-      response.data[2][2].map((word) => englishResults.value[word] = 'incorrect')
+      response.data[0][1].forEach((word) => pinyinResults.value[word] = 'correct')
+      response.data[0][2].forEach((word) => pinyinResults.value[word] = 'incorrect')
+      response.data[2][1].forEach((word) => englishResults.value[word] = 'correct')
+      response.data[2][2].forEach((word) => englishResults.value[word] = 'incorrect')
 
       for (var i = 0; i < response.data[1].length; i++) {
         let word = response.data[1][i][0]

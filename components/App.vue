@@ -1,14 +1,14 @@
 <script setup>
-  import { ref, computed, provide } from 'vue'
+  import { ref, computed } from 'vue'
   import Home from './Home.vue'
-  import Test from './Test.vue'
+  import Quiz from './Quiz.vue'
   import Stats from './Stats.vue'
   import Import from './Import.vue'
   import NotFound from './NotFound.vue'
 
   const routes = {
     '/': Home,
-    '/test': Test,
+    '/quiz': Quiz,
     '/stats': Stats,
     '/import': Import
   }
@@ -22,9 +22,6 @@
   const currentView = computed(() => {
     return routes[currentPath.value.slice(1) || '/'] || NotFound
   })
-
-  const testResults = ref(JSON.parse(localStorage.getItem("testResults")) || [])
-  provide('testResults', testResults)
 </script>
 
 <style>
@@ -79,7 +76,7 @@
 <template>
   <div id="navbar">
     <a href="#/"><span id="home">flashcards</span></a> |
-    <a href="#/test">test</a> |
+    <a href="#/quiz">quiz</a> |
     <a href="#/stats">stats</a> |
     <a href="#/import">import</a>
   </div>

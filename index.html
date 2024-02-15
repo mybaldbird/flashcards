@@ -18,26 +18,28 @@
   <script src="https://cdn.jsdelivr.net/npm/vue3-sfc-loader@0.8.4/dist/vue3-sfc-loader.js" integrity="sha256-oROwIeVQRaF/hMPVtNFQXq8GSppONlQOo7GZyHC9iEI=" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/vue-axios@3.4.1/dist/vue-axios.common.min.js" integrity="sha256-uN4NGgqy71mU685kUrm5SCFma6XEmMkoFfPQZk34T6s=" crossorigin="anonymous"></script>
   <script>
-    var myHeaders = new Headers();
-    myHeaders.append('pragma', 'no-cache');
-    myHeaders.append('cache-control', 'no-cache');
+    var myHeaders = new Headers()
+    myHeaders.append('pragma', 'no-cache')
+    myHeaders.append('cache-control', 'no-cache')
     var init = {
       method: 'GET',
-      headers: myHeaders,
-    };
+      headers: myHeaders
+    }
 
     const options = {
       moduleCache: { vue: Vue },
       getFile: (url) => { return fetch(url, init).then(res => res.text()) },
       addStyle: (textContent) => {
-        const style = Object.assign(document.createElement('style'), { textContent });
-        const ref = document.head.getElementsByTagName('style')[0] || null;
-        document.head.insertBefore(style, ref);
-      },
+        const style = Object.assign(document.createElement('style'), { textContent })
+        const ref = document.head.getElementsByTagName('style')[0] || null
+        document.head.insertBefore(style, ref)
+      }
     }
 
-    const { loadModule } = window["vue3-sfc-loader"]
-    const app = Vue.createApp(Vue.defineAsyncComponent(() => loadModule("/components/App.vue", options)))
+    const { loadModule } = window['vue3-sfc-loader']
+    const app = Vue.createApp(Vue.defineAsyncComponent(() =>
+      loadModule('/components/App.vue', options)
+    ))
     app.use(VueAxios, axios)
 
     app.mount('#app')

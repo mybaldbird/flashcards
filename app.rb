@@ -1,8 +1,10 @@
 require 'sinatra'
-require "sinatra/reloader"
+require 'sinatra/reloader'
 require 'csv'
 
-data = JSON.parse(File.read('data.json'))
+before do
+  @data = JSON.parse(File.read('data.json'))
+end
 
 get '/' do
   send_file './index.html'
@@ -16,78 +18,90 @@ get '/images/*' do
   send_file File.join('./images', params['splat'][0])
 end
 
-get '/dictionary' do
-  data.to_json
+get '/dictionaries/chinese' do
+  @data['chinese'].to_json
 end
 
 # import CSV of chinese words and store in the 'data.json' file
 post '/import' do
   payload = JSON.parse(request.body.read)
   CSV.parse(payload['words']).map do |chinese, pinyin, english, lesson|
-    data[chinese] ||= { 'english' => [] }
-    data[chinese]['pinyin'] = pinyin
-    data[chinese]['english'] |= [english]
-    data[chinese]['lesson'] = lesson.to_i
+    @data['chinese'][chinese] ||= { 'english' => [] }
+    @data['chinese'][chinese]['pinyin'] = pinyin
+    @data['chinese'][chinese]['english'] |= [english]
+    @data['chinese'][chinese]['lesson'] = lesson.to_i
   end
 
-  File.write('data.json', data.to_json)
+  File.write('data.json', @data.to_json)
 
   200
 end
 
-# build a certain type of test (indicated by payload['type'])
-# use the previous test results (payload['test_results']) to weight the questions
-post '/build_test' do
+# build a chinese to english quiz
+# use the previous quiz results (payload['quiz_results']) to weight which words get asked
+post '/quiz/chinese_to_english/build' do
   payload = JSON.parse(request.body.read)
 
-  empty_scores = {
-    'chinese_to_pinyin' => [0, 0],
-    'chinese_to_english' => [0, 0]
-  }
-  scores = data.keys.map { |chinese| [chinese, empty_scores.dup] }.to_h
+  scores = process_results(payload['quiz_results'], 'chinese')
+  lowscores, highscores = partition_scores(scores)
 
-  payload['test_results'].map do |type, correct, incorrect|
-    correct.each do |chinese|
-      scores[chinese][type][0] += 1
-      scores[chinese][type][1] += 1
+  lowscores = (lowscores['chinese_to_pinyin'] + lowscores['chinese_to_english'])
+    .sort_by(&:last)
+    .map(&:first)
+    .uniq
+  highscores = (highscores['chinese_to_pinyin'] + highscores['chinese_to_english'])
+    .sort_by(&:last)
+    .map(&:first)
+    .uniq - lowscores
+
+  build_quiz(lowscores, highscores)
+end
+
+def process_results(results, dictionary)
+  scores = {}
+  @data[dictionary].keys.each do |word|
+    scores[word] = {
+      'chinese_to_pinyin' => { correct: 0, attempts: 0 },
+      'chinese_to_english' => { correct: 0, attempts: 0 }
+    }
+  end
+
+  results.each do |type, correct, incorrect|
+    correct.each do |word|
+      scores[word][type][:correct] += 1
+      scores[word][type][:attempts] += 1
     end
-    incorrect.each do |chinese|
-      scores[chinese][type][1] += 1
+    incorrect.each do |word|
+      scores[word][type][:attempts] += 1
     end
   end
 
-  # 2 buckets:
-  #   lowscores = chinese words that were correctly answered less than 80% of the time
-  #   highscores = the rest
-  # store how many times the word has been tested so that the less frequent ones are more likely to
-  # be selected
+  scores
+end
+
+# 2 buckets:
+#   lowscores = words that were correctly answered less than 80% of the time
+#   highscores = the rest
+# store how many times the word has been tested so that the less frequent ones are more likely to be
+# selected
+def partition_scores(scores)
   lowscores = Hash.new { |h, k| h[k] = [] }
   highscores = Hash.new { |h, k| h[k] = [] }
 
-  scores.each do |chinese, scores_by_type|
+  scores.each do |word, scores_by_type|
     scores_by_type.each do |type, score|
-      grade = (score[1] == 0) ? 0.0 : score[0].to_f / score[1]
-      next lowscores[type] << [chinese, score[1]] if grade < 0.8
-      highscores[type] << [chinese, score[1]]
+      grade = (score[:attempts] == 0) ? 0.0 : score[:correct].to_f / score[:attempts]
+      next lowscores[type] << [word, score[:attempts]] if grade < 0.8
+      highscores[type] << [word, score[:attempts]]
     end
   end
 
-  case payload['type']
-  when 'chinese_to_english'
-    lowscores = (lowscores['chinese_to_pinyin'] + lowscores['chinese_to_english'])
-      .sort_by(&:last)
-      .map(&:first)
-      .uniq
-    highscores = (highscores['chinese_to_pinyin'] + highscores['chinese_to_english'])
-      .sort_by(&:last)
-      .map(&:first)
-      .uniq - lowscores
-  when 'english_to_chinese'
-  when 'chinese_writing'
-  end
+  [lowscores, highscores]
+end
 
-  # test should try to take 3 from the highscores bucket and 7 from the lowscores bucket
-  # if one of those buckets isn't big enough, fill in the rest from the other bucket
+# quiz should try to take 3 from the highscores bucket and 7 from the lowscores bucket
+# if one of those buckets isn't big enough, fill in the rest from the other bucket
+def build_quiz(lowscores, highscores)
   questions = []
   if highscores.size < 4
     questions = highscores
@@ -110,34 +124,30 @@ def weighted_sample(array)
   array.delete_at((r * r * array.size).floor)
 end
 
-post '/submit_test' do
+post '/quiz/chinese_to_english/submit' do
   payload = JSON.parse(request.body.read)
 
   response = []
 
-  if payload['chinese_to_pinyin']
-    results = ['chinese_to_pinyin', [], []]
-    dictionary = []
-    payload['chinese_to_pinyin'].each do |word, pinyin|
-      dictionary << [word, data[word]['pinyin']]
-      next results[1] << word if data[word]['pinyin'] == pinyin
-      results[2] << word
-    end
-    response << results
-    response << dictionary
+  results = ['chinese_to_pinyin', [], []]
+  dictionary = []
+  payload['chinese_to_pinyin'].each do |word, pinyin|
+    dictionary << [word, @data['chinese'][word]['pinyin']]
+    next results[1] << word if @data['chinese'][word]['pinyin'] == pinyin
+    results[2] << word
   end
+  response << results
+  response << dictionary
 
-  if payload['chinese_to_english']
-    results = ['chinese_to_english', [], []]
-    dictionary = []
-    payload['chinese_to_english'].each do |word, english|
-      dictionary << [word, data[word]['english']]
-      next results[1] << word if data[word]['english'].include? english
-      results[2] << word
-    end
-    response << results
-    response << dictionary
+  results = ['chinese_to_english', [], []]
+  dictionary = []
+  payload['chinese_to_english'].each do |word, english|
+    dictionary << [word, @data['chinese'][word]['english']]
+    next results[1] << word if @data['chinese'][word]['english'].include? english
+    results[2] << word
   end
+  response << results
+  response << dictionary
 
   response.to_json
 end

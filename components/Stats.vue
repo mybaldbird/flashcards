@@ -1,31 +1,18 @@
 <script setup>
-  import { ref, inject } from 'vue'
+  import { ref } from 'vue'
+  import { processedQuizResults } from './utils/quizResults.js'
 
-  const testResults = inject('testResults')
-  const testTypeTitles = ref({
+  const quizTypeTitles = ref({
     'chinese_to_pinyin': 'Chinese to Pinyin',
     'chinese_to_english': 'Chinese to English'
   })
   const tableData = ref([])
-  const currentTestType = ref('chinese_to_pinyin')
+  const currentQuizType = ref('chinese_to_pinyin')
 
-  let processedResults = {}
-  for (let testType in testTypeTitles.value) { processedResults[testType] = {} }
-
-  testResults.value.forEach((test) => {
-    test[1].forEach((correctWord) => {
-      processedResults[test[0]][correctWord] ||= { correct: 0, attempts: 0 }
-      processedResults[test[0]][correctWord].correct += 1
-      processedResults[test[0]][correctWord].attempts += 1
-    })
-    test[2].forEach((incorrectWord) => {
-      processedResults[test[0]][incorrectWord] ||= { correct: 0, attempts: 0 }
-      processedResults[test[0]][incorrectWord].attempts += 1
-    })
-  })
+  let results = processedQuizResults()
 
   axios
-  .get('/dictionary')
+  .get('/dictionaries/chinese')
   .then((response) => {
     for (let chinese in response.data) {
       let entry = response.data[chinese]
@@ -34,16 +21,16 @@
         pinyin: entry.pinyin,
         english: entry.english,
         lesson: entry.lesson,
-        tests: {}
+        quizzes: {}
       }
 
-      for (let testType in testTypeTitles.value) {
-        let result = processedResults[testType][chinese] || { correct: 0, attempts: 0 }
+      for (let quizType in quizTypeTitles.value) {
+        let result = results[quizType][chinese] || { correct: 0, attempts: 0 }
         let accuracy = ''
         if (result.attempts > 0) {
           accuracy = Math.round(result.correct / result.attempts * 10000) / 100
         }
-        row.tests[testType] = {
+        row.quizzes[quizType] = {
           accuracy: accuracy,
           attempts: result.attempts
         }
@@ -52,12 +39,12 @@
       tableData.value.push(row)
     }
 
-    switchTest('chinese_to_pinyin')
+    switchQuiz('chinese_to_pinyin')
   })
   .catch((error) => console.log(error))
 
-  function switchTest(testType) {
-    currentTestType.value = testType
+  function switchQuiz(quizType) {
+    currentQuizType.value = quizType
     // TODO sorting
   }
 </script>
@@ -69,9 +56,9 @@
 </style>
 
 <template>
-  <button @click="switchTest('chinese_to_pinyin')">Chinese to Pinyin</button>
-  <button @click="switchTest('chinese_to_english')">Chinese to English</button>
-  <h3>Stats for {{ testTypeTitles[currentTestType] }}</h3>
+  <button @click="switchQuiz('chinese_to_pinyin')">Chinese to Pinyin</button>
+  <button @click="switchQuiz('chinese_to_english')">Chinese to English</button>
+  <h3>Stats for {{ quizTypeTitles[currentQuizType] }}</h3>
   <table>
     <thead>
       <tr>
@@ -91,8 +78,8 @@
           <div v-for="english in row.english">{{ english }}</div>
         </td>
         <td>{{ row.lesson }}</td>
-        <td>{{ row.tests[currentTestType].accuracy }}</td>
-        <td>{{ row.tests[currentTestType].attempts }}</td>
+        <td>{{ row.quizzes[currentQuizType].accuracy }}</td>
+        <td>{{ row.quizzes[currentQuizType].attempts }}</td>
       </tr>
     </tbody>
   </table>
